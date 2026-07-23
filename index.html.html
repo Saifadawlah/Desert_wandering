@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>تيه الصحراء - مهام عشوائية</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #0a0505; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; }
+        #webgl-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        .interactive { pointer-events: auto; }
+
+        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0a0205; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #d43b3b; font-family: monospace; }
+        .loader-bar-bg { width: 260px; height: 14px; background: #1e1010; border: 1px solid #b22; border-radius: 12px; overflow: hidden; margin-top: 18px; box-shadow: 0 0 20px #4a0000; }
+        #loader-bar { width: 0%; height: 100%; background: #e04343; transition: width 0.3s; box-shadow: 0 0 15px #ff4444; }
+
+        #main-menu { background: radial-gradient(circle at 20% 30%, rgba(40,10,10,0.9), rgba(5,0,2,0.98)); display: flex; flex-direction: column; justify-content: center; align-items: center; color: #fff; text-align: center; backdrop-filter: blur(4px); }
+        #main-menu h1 { font-size: 3.4rem; color: #a02020; text-shadow: 0 0 30px #ff3333, 0 0 60px #550000, 3px 3px 8px #000; margin-bottom: 30px; letter-spacing: 3px; font-weight: 900; }
+        .btn { background: rgba(60, 10, 10, 0.75); border: 2px solid #a52a2a; color: #f0d0d0; padding: 12px 36px; margin: 8px; font-size: 1.2rem; border-radius: 30px; cursor: pointer; transition: all 0.25s; box-shadow: 0 0 20px rgba(150, 0, 0, 0.6); backdrop-filter: blur(4px); letter-spacing: 1px; }
+        .btn:hover { background: #8b1a1a; box-shadow: 0 0 40px #ff3333, inset 0 0 20px #ff6666; transform: scale(1.07); border-color: #ff4444; }
+
+        #hud { display: none; }
+        .status-container { position: absolute; top: 20px; right: 20px; width: 180px; background: rgba(8, 2, 5, 0.85); padding: 12px 14px; border-radius: 16px; border: 1px solid #6a2a2a; backdrop-filter: blur(6px); box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        .bar-label { color: #ddd; font-size: 11px; margin-bottom: 3px; letter-spacing: 1px; }
+        .bar-bg { width: 100%; height: 10px; background: #1a0e0e; border-radius: 12px; margin-bottom: 8px; overflow: hidden; border: 1px solid #3a1a1a; }
+        #hp-bar { width: 100%; height: 100%; background: #d63030; transition: width 0.25s; box-shadow: 0 0 10px #ff2222; }
+        #stamina-bar { width: 100%; height: 100%; background: #4cd137; transition: width 0.15s; box-shadow: 0 0 8px #44ff44; }
+
+        .weapon-box { position: absolute; bottom: 30px; right: 20px; background: rgba(10, 2, 5, 0.8); border: 1px solid #9a3a3a; padding: 12px 18px; color: #eee; border-radius: 30px; text-align: center; backdrop-filter: blur(8px); box-shadow: 0 0 25px rgba(200,0,0,0.3); min-width: 100px; }
+        #joystick-zone { position: absolute; bottom: 30px; left: 30px; width: 120px; height: 120px; border-radius: 60px; background: radial-gradient(circle, rgba(255,0,0,0.1), rgba(0,0,0,0.4)); backdrop-filter: blur(2px); }
+        .crosshair { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; background: transparent; transform: translate(-50%, -50%); pointer-events: none; }
+        .crosshair::before, .crosshair::after { content: ''; position: absolute; background: #ff4444; }
+        .crosshair::before { width: 2px; height: 100%; left: 50%; transform: translateX(-50%); box-shadow: 0 0 8px #ff0000; }
+        .crosshair::after { width: 100%; height: 2px; top: 50%; transform: translateY(-50%); box-shadow: 0 0 8px #ff0000; }
+        #ghost-pause-btn { position: absolute; top: 20px; left: 20px; width: 50px; height: 50px; background: rgba(20, 5, 5, 0.7); border: 1px solid #a22; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; cursor: pointer; backdrop-filter: blur(6px); box-shadow: 0 0 20px #440000; }
+
+        .modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(12, 3, 6, 0.96); border: 2px solid #8b1a1a; padding: 30px; color: #f0e0e0; border-radius: 24px; text-align: center; min-width: 280px; backdrop-filter: blur(12px); box-shadow: 0 0 70px rgba(100,0,0,0.7); }
+        #glitch-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(200, 0, 0, 0.25); opacity: 0; pointer-events: none; transition: opacity 0.08s; }
+        
+        #quest-container { position: absolute; top: 80px; width: 100%; text-align: center; pointer-events: none; }
+        #quest-box { display: inline-block; background: rgba(0,0,0,0.75); padding: 10px 20px; border-radius: 12px; border: 1px solid #6a2a2a; backdrop-filter: blur(6px); max-width: 85%; margin: 0 auto; }
+        #quest-text { color: #f7e07a; font-size: 0.95rem; text-shadow: 0 0 20px #000; letter-spacing: 0.5px; white-space: pre-wrap; text-align: right; line-height: 1.6; }
+        
+        .touch-action-btns { position: absolute; bottom: 100px; right: 20px; display: flex; flex-direction: column; gap: 12px; }
+        .action-btn { width: 56px; height: 56px; background: rgba(20, 5, 5, 0.7); border: 1px solid #a55; border-radius: 50%; color: #eee; font-size: 13px; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(6px); box-shadow: 0 0 15px rgba(0,0,0,0.7); transition: 0.1s; }
+        .action-btn:active { transform: scale(0.92); background: #5a1a1a; }
+
+        @media (max-width: 600px) {
+            #main-menu h1 { font-size: 2.2rem; }
+            .btn { padding: 10px 20px; font-size: 1rem; }
+            .status-container { width: 140px; padding: 8px; }
+            #joystick-zone { width: 100px; height: 100px; bottom: 20px; left: 20px; }
+            #quest-text { font-size: 0.8rem; }
+            #quest-box { padding: 8px 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="webgl-container"></div>
+    <div id="glitch-overlay" class="ui-layer"></div>
+
+    <div id="loading-screen">
+        <h2>🌙 جاري تحميل الصحراء...</h2>
+        <div class="loader-bar-bg"><div id="loader-bar"></div></div>
+        <p id="loading-text" style="margin-top: 14px; font-size: 14px; color: #b55;">تحميل الموارد...</p>
+    </div>
+
+    <div id="main-menu" class="ui-layer interactive">
+        <h1>🏜️ تيه الصحراء</h1>
+        <button class="btn" onclick="startNewGame()">⚔️ لعب جديد</button>
+        <button class="btn" onclick="loadSavedGame()">💾 متابعة الحفظ</button>
+        <button class="btn" onclick="openModal('settings-modal')">⚙️ الإعدادات</button>
+    </div>
+
+    <div id="hud" class="ui-layer">
+        <div id="ghost-pause-btn" class="interactive" onclick="togglePause()">👻</div>
+        <div class="crosshair"></div>
+        
+        <div id="quest-container">
+            <div id="quest-box">
+                <div id="quest-text">📋 جارٍ تحميل المهام...</div>
+            </div>
+        </div>
+        
+        <div class="status-container">
+            <div class="bar-label">❤️ الصحة</div>
+            <div class="bar-bg"><div id="hp-bar"></div></div>
+            <div class="bar-label">⚡ التحمل</div>
+            <div class="bar-bg"><div id="stamina-bar"></div></div>
+        </div>
+
+        <div class="weapon-box">
+            <div id="weapon-name" style="font-weight: bold;">السكين</div>
+            <div id="ammo-count" style="font-size: 14px; color: #aaa;">∞</div>
+        </div>
+
+        <div id="joystick-zone" class="interactive"></div>
+
+        <div class="touch-action-btns interactive">
+            <button class="action-btn" id="btn-switch-weapon">🔁</button>
+            <button class="action-btn" id="btn-attack" style="border-color: #e33; color: #ff8888;">⚡</button>
+            <button class="action-btn" id="btn-interact">🖐️</button>
+            <button class="action-btn" id="btn-run" style="border-color: #4ca;">🏃</button>
+        </div>
+    </div>
+
+    <div id="pause-modal" class="modal ui-layer interactive">
+        <h2 style="color: #d44;">⏸️ توقف</h2>
+        <button class="btn" onclick="saveGameData()" style="margin:6px;">💾 حفظ</button>
+        <button class="btn" onclick="togglePause()" style="margin:6px;">▶️ مواصلة</button>
+        <button class="btn" onclick="goToMainMenu()" style="margin:6px;">🏠 رئيسية</button>
+    </div>
+
+    <div id="settings-modal" class="modal ui-layer interactive">
+        <h2 style="color: #d44;">⚙️ الإعدادات</h2>
+        <p style="margin-bottom:14px; color:#bbb;">نظام مهام عشوائي بالكامل</p>
+        <button class="btn" onclick="closeModal('settings-modal')">إغلاق</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.9.0/nipplejs.min.js"></script>
+
+    <script>
+        // ========================================
+        // البيانات الأساسية (تعريف مبكر)
+        // ========================================
+        const DEFAULT_PLAYER = {
+            hp: 100, stamina: 100, isRunning: false, currentWeaponIdx: 0,
+            weapons: [
+                { name: '🔪 سكين', ammo: Infinity, maxAmmo: Infinity, damage: 25 },
+                { name: '🔫 مسدس', ammo: 12, maxAmmo: 36, damage: 50 },
+                { name: '🔫 بندقية', ammo: 5, maxAmmo: 15, damage: 100 }
+            ]
+        };
+
+        const QUEST_TYPES = [
+            { id: 'find_tyre', name: '🔧 إطار', desc: 'أحضر إطاراً للشاحنة', icon: '🔄', reward: { hp: 15 } },
+            { id: 'find_battery', name: '🔋 بطارية', desc: 'أحضر بطارية جديدة', icon: '🔋', reward: { ammo: 8 } },
+            { id: 'find_fuel', name: '⛽ وقود', desc: 'أحضر جالون وقود', icon: '⛽', reward: { stamina: 25 } },
+            { id: 'find_map', name: '🗺️ خريطة', desc: 'أحضر خريطة المنطقة', icon: '🗺️', reward: { hp: 20 } },
+            { id: 'kill_monster', name: '⚔️ قتل', desc: 'اقتل أي وحش', icon: '💀', reward: { ammo: 12 } },
+            { id: 'find_medkit', name: '💊 علاج', desc: 'أحضر علبة إسعافات', icon: '❤️‍🩹', reward: { hp: 35 } },
+            { id: 'reach_tower', name: '🏰 برج', desc: 'وصل إلى البرج', icon: '🏛️', reward: { stamina: 30 } }
+        ];
+
+        // ========================================
+        // متغيرات اللعبة العامة
+        // ========================================
+        let scene, camera, renderer;
+        let flashlight, redMoon, cloudsGroup, dustParticles, moonLight;
+        let truck, tower;
+        let monsters = [];
+        let audioFiles = {};
+        let joystickData = { x: 0, y: 0 };
+        let stepTimer = 0;
+        let clock = new THREE.Clock();
+        let gameStarted = false;
+        let gamePaused = false;
+        let allQuestsDone = false;
+
+        let player = JSON.parse(JSON.stringify(DEFAULT_PLAYER));
+        let activeQuests = [];
+        let questItems = {};
+        let medkit = null;
+        let towerReached = false;
+
+        // ========================================
+        // دالة إنشاء الوحش (معرفة مبكراً)
+        // ========================================
+        function createMonsterMesh(color, type, speed, x, z, height) {
+            const group = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.6, emissive: color, emissiveIntensity: 0.05 });
+            let bodyGeo;
+            if (type === 'zombie') bodyGeo = new THREE.CylinderGeometry(0.5, 0.6, 1.2, 6);
+            else if (type === 'wolf') bodyGeo = new THREE.BoxGeometry(0.6, 0.7, 1.2);
+            else bodyGeo = new THREE.SphereGeometry(0.7, 8, 8);
+            
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = height/2;
+            body.castShadow = true;
+            group.add(body);
+
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.5 });
+            const head = new THREE.Mesh(new THREE.SphereGeometry(type === 'scp' ? 0.4 : 0.3, 6, 6), headMat);
+            head.position.set(0, height + 0.1, 0.2);
+            head.castShadow = true;
+            group.add(head);
+
+            const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.5 });
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), eyeMat);
+            eye.position.set(0.15, height + 0.2, 0.4);
+            group.add(eye);
+            const eye2 = eye.clone();
+            eye2.position.set(-0.15, height + 0.2, 0.4);
+            group.add(eye2);
+
+            group.position.set(x, 0, z);
+            group.userData = { type, speed, hp: type === 'scp' ? 150 : 100 };
+            scene.add(group);
+            return group;
+        }
+
+        // ========================================
+        // نظام المهام العشوائي
+        // ========================================
+        function initRandomQuests() {
+            activeQuests = [];
+            questItems = {};
+            allQuestsDone = false;
+            towerReached = false;
+            
+            const shuffled = [...QUEST_TYPES].sort(() => Math.random() - 0.5);
+            const count = 4 + Math.floor(Math.random() * 3);
+            const selected = shuffled.slice(0, count);
+            
+            selected.forEach((quest) => {
+                activeQuests.push({
+                    ...quest,
+                    progress: 0,
+                    completed: false
+                });
+            });
+
+            spawnQuestItems();
+            spawnMedkit();
+            updateQuestUI();
+        }
+
+        // ========================================
+        // توليد عناصر المهام
+        // ========================================
+        function spawnQuestItems() {
+            Object.values(questItems).forEach(item => { if(item) scene.remove(item); });
+            questItems = {};
+
+            const positions = [
+                { x: 6 + Math.random() * 4, z: -15 + Math.random() * 4 },
+                { x: -25 + Math.random() * 4, z: -40 + Math.random() * 4 },
+                { x: 45 + Math.random() * 4, z: -70 + Math.random() * 4 },
+                { x: 75 + Math.random() * 3, z: -95 + Math.random() * 3 }
+            ];
+
+            const shuffledPos = [...positions].sort(() => Math.random() - 0.5);
+            let posIndex = 0;
+
+            activeQuests.forEach(quest => {
+                if (quest.id === 'kill_monster' || quest.id === 'reach_tower') return;
+                
+                const pos = shuffledPos[posIndex % shuffledPos.length];
+                posIndex++;
+                
+                let mesh = null;
+                const mat = new THREE.MeshStandardMaterial({ 
+                    color: 0x44ff88, 
+                    emissive: 0x44ff88, 
+                    emissiveIntensity: 0.15,
+                    roughness: 0.4,
+                    metalness: 0.3
+                });
+                
+                switch(quest.id) {
+                    case 'find_tyre':
+                        mesh = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.15, 8, 16), mat);
+                        mesh.rotation.x = Math.PI/2;
+                        break;
+                    case 'find_battery':
+                        mesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.7), mat);
+                        break;
+                    case 'find_fuel':
+                        mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.7, 10), mat);
+                        break;
+                    case 'find_map':
+                        mesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.02, 0.6), 
+                            new THREE.MeshStandardMaterial({ color: 0xccbb88, roughness: 0.7 }));
+                        break;
+                    default:
+                        mesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), mat);
+                }
+                
+                if (mesh) {
+                    mesh.position.set(pos.x, 0.4, pos.z);
+                    mesh.castShadow = true;
+                    mesh.userData.questId = quest.id;
+                    scene.add(mesh);
+                    questItems[quest.id] = mesh;
+                }
+            });
+        }
+
+        // ========================================
+        // توليد علبة الإسعافات
+        // ========================================
+        function spawnMedkit() {
+            if (medkit) scene.remove(medkit);
+            
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: 0xff2222, 
+                emissive: 0xff0000, 
+                emissiveIntensity: 0.2,
+                roughness: 0.3 
+            });
+            medkit = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.6), mat);
+            medkit.position.set(
+                -40 + Math.random() * 80,
+                0.4,
+                -80 + Math.random() * 60
+            );
+            medkit.castShadow = true;
+            medkit.userData.questId = 'find_medkit';
+            scene.add(medkit);
+        }
+
+        // ========================================
+        // تحديث واجهة المهام
+        // ========================================
+        function updateQuestUI() {
+            const active = activeQuests.filter(q => !q.completed);
+            const completed = activeQuests.filter(q => q.completed);
+            
+            let text = '';
+            
+            if (active.length === 0 && completed.length > 0) {
+                text = '✅ كل المهام أنجزت! اذهب للشاحنة للفوز! 🏆';
+                allQuestsDone = true;
+            } else {
+                active.forEach(q => {
+                    text += `${q.icon} ${q.name}: ${q.desc}\n`;
+                });
+                if (completed.length > 0) {
+                    text += `\n✅ أنجزت: ${completed.length}/${activeQuests.length}`;
+                }
+            }
+            
+            document.getElementById('quest-text').innerText = text || '📋 لا توجد مهام حالياً';
+        }
+
+        // ========================================
+        // تطبيق المكافأة
+        // ========================================
+        function applyReward(reward) {
+            if (reward.hp) {
+                player.hp = Math.min(100, player.hp + reward.hp);
+                document.getElementById('hp-bar').style.width = player.hp + '%';
+            }
+            if (reward.ammo) {
+                const w = player.weapons[player.currentWeaponIdx];
+                if (w.ammo !== Infinity) {
+                    w.ammo = Math.min(w.maxAmmo, w.ammo + reward.ammo);
+                    updateWeaponUI();
+                }
+            }
+            if (reward.stamina) {
+                player.stamina = Math.min(100, player.stamina + reward.stamina);
+                document.getElementById('stamina-bar').style.width = player.stamina + '%';
+            }
+        }
+
+        // ========================================
+        // التفاعل مع العناصر
+        // ========================================
+        function interact() {
+            const p = camera.position;
+            
+            for (let id in questItems) {
+                const item = questItems[id];
+                if (item && p.distanceTo(item.position) < 3) {
+                    const quest = activeQuests.find(q => q.id === id);
+                    if (quest && !quest.completed) {
+                        quest.completed = true;
+                        applyReward(quest.reward);
+                        scene.remove(item);
+                        questItems[id] = null;
+                        playSound('pickup');
+                        triggerGlitch();
+                        updateQuestUI();
+                        return;
+                    }
+                }
+            }
+            
+            if (medkit && p.distanceTo(medkit.position) < 3) {
+                const quest = activeQuests.find(q => q.id === 'find_medkit');
+                if (quest && !quest.completed) {
+                    quest.completed = true;
+                    applyReward(quest.reward);
+                    scene.remove(medkit);
+                    medkit = null;
+                    playSound('pickup');
+                    triggerGlitch();
+                    updateQuestUI();
+                    return;
+                }
+            }
+            
+            if (tower && p.distanceTo(tower.position) < 5) {
+                const quest = activeQuests.find(q => q.id === 'reach_tower');
+                if (quest && !quest.completed) {
+                    quest.completed = true;
+                    applyReward(quest.reward);
+                    towerReached = true;
+                    playSound('pickup');
+                    triggerGlitch();
+                    updateQuestUI();
+                    return;
+                }
+            }
+            
+            if (allQuestsDone && p.distanceTo(truck.position) < 5) {
+                alert('🎉 تهانينا! لقد أنجزت كل المهام ونجوت من الصحراء!');
+                goToMainMenu();
+                return;
+            }
+        }
+
+        // ========================================
+        // قتل الوحوش
+        // ========================================
+        function performAttack() {
+            const w = player.weapons[player.currentWeaponIdx];
+            if (w.ammo <= 0) return;
+
+            if (w.ammo !== Infinity) {
+                w.ammo--;
+                updateWeaponUI();
+            }
+            playSound('shoot');
+            triggerGlitch();
+
+            for (let i = monsters.length - 1; i >= 0; i--) {
+                const m = monsters[i];
+                const dist = camera.position.distanceTo(m.position);
+                if (dist < 13) {
+                    m.userData.hp -= w.damage;
+                    if (m.userData.hp <= 0) {
+                        scene.remove(m);
+                        monsters.splice(i, 1);
+                        
+                        const quest = activeQuests.find(q => q.id === 'kill_monster');
+                        if (quest && !quest.completed) {
+                            quest.completed = true;
+                            applyReward(quest.reward);
+                            updateQuestUI();
+                            playSound('pickup');
+                            triggerGlitch();
+                        }
+                    }
+                }
+            }
+        }
+
+        // ========================================
+        // تبديل السلاح
+        // ========================================
+        function switchWeapon() {
+            player.currentWeaponIdx = (player.currentWeaponIdx + 1) % player.weapons.length;
+            updateWeaponUI();
+        }
+
+        function updateWeaponUI() {
+            const w = player.weapons[player.currentWeaponIdx];
+            document.getElementById('weapon-name').innerText = w.name;
+            document.getElementById('ammo-count').innerText = w.ammo === Infinity ? '∞' : w.ammo;
+        }
+
+        // ========================================
+        // نظام الصوت
+        // ========================================
+        function initAudioSystem() {
+            try {
+                audioFiles.step = new Audio('https://actions.google.com/sounds/v1/foley/footsteps_desert.ogg');
+                audioFiles.pickup = new Audio('https://actions.google.com/sounds/v1/items/item_pickup.ogg');
+                audioFiles.shoot = new Audio('https://actions.google.com/sounds/v1/weapons/gunshot.ogg');
+                Object.values(audioFiles).forEach(a => { a.volume = 0.4; a.preload = 'auto'; });
+            } catch(e) {}
+        }
+
+        function playSound(name) {
+            if (audioFiles[name]) {
+                try {
+                    audioFiles[name].currentTime = 0;
+                    audioFiles[name].play().catch(() => {});
+                } catch(e) {}
+            }
+        }
+
+        // ========================================
+        // المؤثرات البصرية
+        // ========================================
+        function triggerGlitch() {
+            const overlay = document.getElementById('glitch-overlay');
+            overlay.style.opacity = '0.7';
+            setTimeout(() => { overlay.style.opacity = '0'; }, 120);
+        }
+
+        // ========================================
+        // تهيئة المشهد
+        // ========================================
+        function initScene() {
+            const container = document.getElementById('webgl-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050208);
+            scene.fog = new THREE.FogExp2(0x0a0308, 0.018);
+
+            camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 400);
+            camera.position.set(0, 1.7, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            container.appendChild(renderer.domElement);
+
+            const ambient = new THREE.AmbientLight(0x221122, 0.25);
+            scene.add(ambient);
+
+            moonLight = new THREE.PointLight(0xff4422, 0.6, 180);
+            moonLight.position.set(80, 55, -140);
+            scene.add(moonLight);
+
+            flashlight = new THREE.SpotLight(0xffeedd, 2.8, 30, Math.PI / 5.5, 0.5, 1.2);
+            flashlight.position.set(0, 1.7, 0);
+            flashlight.target = new THREE.Object3D();
+            scene.add(flashlight);
+            scene.add(flashlight.target);
+
+            initAudioSystem();
+            buildEnvironment();
+            buildTerrain();
+            buildTruck();
+            buildTower();
+            spawnMonsters();
+            initRandomQuests();
+
+            window.addEventListener('resize', onWindowResize);
+            setupInputListeners();
+            initJoystick();
+            
+            document.getElementById('loading-screen').style.display = 'none';
+        }
+
+        // ========================================
+        // بناء البيئة
+        // ========================================
+        function buildEnvironment() {
+            const moonMat = new THREE.MeshStandardMaterial({ 
+                color: 0xcc3333, emissive: 0x661111, emissiveIntensity: 0.5, roughness: 0.7 
+            });
+            redMoon = new THREE.Mesh(new THREE.SphereGeometry(7.5, 32, 32), moonMat);
+            redMoon.position.set(80, 55, -140);
+            scene.add(redMoon);
+
+            cloudsGroup = new THREE.Group();
+            for(let i=0; i<20; i++) {
+                const cloud = new THREE.Mesh(
+                    new THREE.BoxGeometry(25 + Math.random()*30, 2 + Math.random()*3, 12 + Math.random()*18),
+                    new THREE.MeshStandardMaterial({ color: 0x1a0a10, transparent: true, opacity: 0.25 + Math.random()*0.25 })
+                );
+                cloud.position.set(-120 + Math.random()*250, 40 + Math.random()*30, -130 + Math.random()*80);
+                cloudsGroup.add(cloud);
+            }
+            scene.add(cloudsGroup);
+
+            const particleCount = 600;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 180;
+                positions[i+1] = Math.random() * 12 + 0.5;
+                positions[i+2] = (Math.random() - 0.5) * 180;
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            dustParticles = new THREE.Points(geometry, new THREE.PointsMaterial({
+                color: 0xcc9966, size: 0.35, transparent: true, opacity: 0.4, sizeAttenuation: true
+            }));
+            dustParticles.userData.velocities = [];
+            for(let i=0; i<particleCount; i++) {
+                dustParticles.userData.velocities.push({
+                    x: (Math.random() - 0.5) * 0.025,
+                    y: 0.005 + Math.random() * 0.015,
+                    z: (Math.random() - 0.5) * 0.025
+                });
+            }
+            scene.add(dustParticles);
+        }
+
+        // ========================================
+        // بناء التضاريس
+        // ========================================
+        function buildTerrain() {
+            const geo = new THREE.PlaneGeometry(350, 350, 48, 48);
+            geo.rotateX(-Math.PI / 2);
+            const pos = geo.attributes.position;
+            for(let i=0; i<pos.count; i++) {
+                const x = pos.getX(i), z = pos.getZ(i);
+                pos.setY(i, Math.sin(x * 0.08) * 0.4 + Math.cos(z * 0.1) * 0.4 + Math.sin(x * 0.02 + z * 0.03) * 0.6);
+            }
+            geo.computeVertexNormals();
+            const terrain = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ 
+                color: 0x2a1a12, roughness: 0.95, metalness: 0.05, emissive: 0x1a0a05, emissiveIntensity: 0.1
+            }));
+            terrain.receiveShadow = true;
+            terrain.position.y = -0.2;
+            scene.add(terrain);
+        }
+
+        // ========================================
+        // بناء الشاحنة
+        // ========================================
+        function buildTruck() {
+            if (truck) scene.remove(truck);
+            truck = new THREE.Group();
+            
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3a1a1a, roughness: 0.8, metalness: 0.2 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.6, 4.2), bodyMat);
+            body.position.y = 0.8;
+            body.castShadow = true;
+            truck.add(body);
+
+            const cabMat = new THREE.MeshStandardMaterial({ color: 0x2a2a3a, roughness: 0.6, metalness: 0.3 });
+            const cab = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.2, 1.6), cabMat);
+            cab.position.set(0, 1.2, -1.6);
+            cab.castShadow = true;
+            truck.add(cab);
+
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1 });
+            const wheelPos = [[-1.2, 0.3, 1.2], [1.2, 0.3, 1.2], [-1.2, 0.3, -1.2], [1.2, 0.3, -1.2]];
+            wheelPos.forEach(pos => {
+                const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 12), wheelMat);
+                wheel.rotation.z = Math.PI/2;
+                wheel.position.set(pos[0], pos[1], pos[2]);
+                wheel.castShadow = true;
+                truck.add(wheel);
+            });
+
+            truck.position.set(85, 0, -105);
+            truck.rotation.y = 0.3;
+            scene.add(truck);
+        }
+
+        // ========================================
+        // بناء البرج
+        // ========================================
+        function buildTower() {
+            if (tower) scene.remove(tower);
+            tower = new THREE.Group();
+            
+            const stoneMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.9 });
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 2.8, 16, 10), stoneMat);
+            base.position.y = 8;
+            base.castShadow = true;
+            tower.add(base);
+
+            const topMat = new THREE.MeshStandardMaterial({ color: 0x2a1a0a, roughness: 0.8 });
+            const top = new THREE.Mesh(new THREE.ConeGeometry(1.6, 2, 8), topMat);
+            top.position.y = 17;
+            top.castShadow = true;
+            tower.add(top);
+
+            const lampMat = new THREE.MeshStandardMaterial({ color: 0xffaa44, emissive: 0xff4400, emissiveIntensity: 0.2 });
+            const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), lampMat);
+            lamp.position.set(0, 16.5, 0);
+            tower.add(lamp);
+
+            tower.position.set(75, 0, -95);
+            scene.add(tower);
+        }
+
+        // ========================================
+        // توليد الوحوش
+        // ========================================
+        function spawnMonsters() {
+            monsters.forEach(m => scene.remove(m));
+            monsters = [];
+            
+            const monsterData = [
+                { color: 0x661111, type: 'zombie', speed: 0.035, x: 12, z: -30, h: 1.7 },
+                { color: 0x554433, type: 'wolf', speed: 0.07, x: -35, z: -55, h: 1.0 },
+                { color: 0xeeeeee, type: 'scp', speed: 0.08, x: 68, z: -80, h: 2.2 },
+                { color: 0x772222, type: 'zombie', speed: 0.03, x: -15, z: -75, h: 1.7 }
+            ];
+            
+            monsterData.forEach(data => {
+                const monster = createMonsterMesh(data.color, data.type, data.speed, data.x, data.z, data.h);
+                monsters.push(monster);
+            });
+        }
+
+        // ========================================
+        // عصا التحكم
+        // ========================================
+        function initJoystick() {
+            const options = {
+                zone: document.getElementById('joystick-zone'),
+                mode: 'static',
+                position: { left: '50%', bottom: '50%' },
+                color: '#cc3333',
+                size: 80,
+                restOpacity: 0.3
+            };
+            const manager = nipplejs.create(options);
+            manager.on('move', (evt, data) => {
+                if (data.vector) {
+                    joystickData.x = data.vector.x;
+                    joystickData.y = data.vector.y;
+                }
+            });
+            manager.on('end', () => {
+                joystickData.x = 0;
+                joystickData.y = 0;
+            });
+        }
+
+        // ========================================
+        // مدخلات اللاعب
+        // ========================================
+        function setupInputListeners() {
+            document.getElementById('btn-attack').addEventListener('click', performAttack);
+            document.getElementById('btn-switch-weapon').addEventListener('click', switchWeapon);
+            document.getElementById('btn-interact').addEventListener('click', interact);
+            
+            const runBtn = document.getElementById('btn-run');
+            runBtn.addEventListener('touchstart', (e) => { e.preventDefault(); player.isRunning = true; });
+            runBtn.addEventListener('touchend', (e) => { e.preventDefault(); player.isRunning = false; });
+            runBtn.addEventListener('mousedown', () => { player.isRunning = true; });
+            runBtn.addEventListener('mouseup', () => { player.isRunning = false; });
+        }
+
+        // ========================================
+        // حفظ وتحميل
+        // ========================================
+        function saveGameData() {
+            const data = {
+                pos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+                hp: player.hp, stamina: player.stamina,
+                weaponIdx: player.currentWeaponIdx,
+                weapons: player.weapons,
+                quests: activeQuests.map(q => ({ id: q.id, completed: q.completed })),
+                monsters: monsters.map(m => ({ type: m.userData.type, hp: m.userData.hp, pos: { x: m.position.x, z: m.position.z } })),
+                items: Object.keys(questItems).reduce((acc, key) => { acc[key] = !!questItems[key]; return acc; }, {}),
+                hasMedkit: !!medkit
+            };
+            localStorage.setItem('desert_horror_save_v3', JSON.stringify(data));
+            alert('✅ تم الحفظ!');
+        }
+
+        function loadSavedGame() {
+            const saved = localStorage.getItem('desert_horror_save_v3');
+            if (!saved) { alert('❌ لا يوجد حفظ!'); return; }
+            
+            const data = JSON.parse(saved);
+            resetGameState();
+            
+            camera.position.set(data.pos.x, data.pos.y, data.pos.z);
+            player.hp = data.hp || 100;
+            player.stamina = data.stamina || 100;
+            player.currentWeaponIdx = data.weaponIdx || 0;
+            player.weapons = data.weapons || JSON.parse(JSON.stringify(DEFAULT_PLAYER.weapons));
+            
+            // استعادة المهام
+            activeQuests = [];
+            data.quests.forEach(savedQuest => {
+                const questDef = QUEST_TYPES.find(q => q.id === savedQuest.id);
+                if (questDef) {
+                    activeQuests.push({
+                        ...questDef,
+                        completed: savedQuest.completed || false
+                    });
+                }
+            });
+            
+            // إعادة إنشاء العناصر
+            spawnQuestItems();
+            // إزالة العناصر التي تم جمعها
+            Object.keys(data.items).forEach(key => {
+                if (!data.items[key] && questItems[key]) {
+                    scene.remove(questItems[key]);
+                    questItems[key] = null;
+                }
+            });
+            
+            if (!data.hasMedkit && medkit) {
+                scene.remove(medkit);
+                medkit = null;
+            }
+            
+            // استعادة الوحوش
+            monsters.forEach(m => scene.remove(m));
+            monsters = [];
+            if (data.monsters) {
+                data.monsters.forEach(mData => {
+                    if (mData.hp > 0) {
+                        const color = mData.type === 'zombie' ? 0x661111 : mData.type === 'wolf' ? 0x554433 : 0xeeeeee;
+                        const speed = mData.type === 'zombie' ? 0.035 : mData.type === 'wolf' ? 0.07 : 0.08;
+                        const h = mData.type === 'scp' ? 2.2 : 1.7;
+                        const m = createMonsterMesh(color, mData.type, speed, mData.pos.x, mData.pos.z, h);
+                        m.userData.hp = mData.hp;
+                        monsters.push(m);
+                    }
+                });
+            }
+            
+            updateWeaponUI();
+            updateQuestUI();
+            startGame();
+        }
+
+        // ========================================
+        // إعادة تعيين حالة اللعبة
+        // ========================================
+        function resetGameState() {
+            player = JSON.parse(JSON.stringify(DEFAULT_PLAYER));
+            allQuestsDone = false;
+            towerReached = false;
+            camera.position.set(0, 1.7, 0);
+            document.getElementById('hp-bar').style.width = '100%';
+            document.getElementById('stamina-bar').style.width = '100%';
+            buildTruck();
+            spawnMonsters();
+            initRandomQuests();
+            updateWeaponUI();
+        }
+
+        // ========================================
+        // التحكم في اللعبة
+        // ========================================
+        function startNewGame() {
+            resetGameState();
+            startGame();
+        }
+
+        function startGame() {
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            gameStarted = true;
+            gamePaused = false;
+        }
+
+        function togglePause() {
+            gamePaused = !gamePaused;
+            document.getElementById('pause-modal').style.display = gamePaused ? 'block' : 'none';
+        }
+
+        function goToMainMenu() {
+            gameStarted = false;
+            gamePaused = false;
+            document.getElementById('pause-modal').style.display = 'none';
+            document.getElementById('hud').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'flex';
+        }
+
+        function openModal(id) { document.getElementById(id).style.display = 'block'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // ========================================
+        // الحلقة الرئيسية
+        // ========================================
+        function animate() {
+            requestAnimationFrame(animate);
+            if (!gameStarted || gamePaused) return;
+
+            const moveSpeed = (player.isRunning && player.stamina > 0) ? 0.16 : 0.07;
+            
+            if (joystickData.x !== 0 || joystickData.y !== 0) {
+                camera.translateX(joystickData.x * moveSpeed);
+                camera.translateZ(-joystickData.y * moveSpeed);
+                
+                camera.position.x = Math.max(-145, Math.min(145, camera.position.x));
+                camera.position.z = Math.max(-145, Math.min(145, camera.position.z));
+                camera.position.y = 1.7;
+
+                stepTimer++;
+                if (stepTimer > 25 && Math.random() < 0.12) {
+                    playSound('step');
+                    stepTimer = 0;
+                }
+
+                if (player.isRunning && player.stamina > 0) {
+                    player.stamina -= 0.5;
+                }
+            }
+
+            if (!player.isRunning && player.stamina < 100) {
+                player.stamina += 0.25;
+            }
+            document.getElementById('stamina-bar').style.width = Math.max(0, player.stamina) + '%';
+
+            flashlight.position.copy(camera.position);
+            const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            flashlight.target.position.copy(camera.position).add(dir);
+
+            if (cloudsGroup) {
+                cloudsGroup.position.x += 0.025;
+                if (cloudsGroup.position.x > 150) cloudsGroup.position.x = -150;
+            }
+
+            if (dustParticles) {
+                const positions = dustParticles.geometry.attributes.position.array;
+                const vels = dustParticles.userData.velocities;
+                for (let i = 0; i < vels.length; i++) {
+                    positions[i*3] += vels[i].x;
+                    positions[i*3+1] += vels[i].y;
+                    positions[i*3+2] += vels[i].z;
+                    
+                    if (positions[i*3+1] > 13) positions[i*3+1] = 0.5;
+                    if (Math.abs(positions[i*3]) > 80) positions[i*3] *= -0.9;
+                    if (Math.abs(positions[i*3+2]) > 80) positions[i*3+2] *= -0.9;
+                }
+                dustParticles.geometry.attributes.position.needsUpdate = true;
+            }
+
+            let nearestDist = 999;
+            monsters.forEach(m => {
+                const dist = camera.position.distanceTo(m.position);
+                if (dist < nearestDist) nearestDist = dist;
+
+                const distToTruck = m.position.distanceTo(truck.position);
+                if (distToTruck < 6) {
+                    const awayDir = new THREE.Vector3().subVectors(m.position, truck.position).normalize();
+                    m.position.x += awayDir.x * 0.03;
+                    m.position.z += awayDir.z * 0.03;
+                }
+
+                if (dist < 22) {
+                    if (m.userData.type === 'zombie' || m.userData.type === 'wolf') {
+                        m.lookAt(camera.position.x, m.position.y, camera.position.z);
+                        m.translateZ(m.userData.speed);
+                    } else if (m.userData.type === 'scp') {
+                        camera.getWorldDirection(new THREE.Vector3());
+                        const toMonster = m.position.clone().sub(camera.position).normalize();
+                        const dot = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).dot(toMonster);
+                        if (dot < 0.5) {
+                            m.lookAt(camera.position.x, m.position.y, camera.position.z);
+                            m.translateZ(m.userData.speed);
+                        }
+                    }
+                }
+
+                if (dist < 2.0) {
+                    player.hp -= 0.6;
+                    document.getElementById('hp-bar').style.width = Math.max(0, player.hp) + '%';
+                    triggerGlitch();
+                    if (player.hp <= 0) {
+                        alert('💀 لقد قتلتك الوحوش! حاول مجدداً.');
+                        goToMainMenu();
+                    }
+                }
+            });
+
+            if (nearestDist < 15) {
+                camera.position.x += (Math.random() - 0.5) * 0.04;
+                camera.position.y = 1.7 + (Math.random() - 0.5) * 0.04;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // ========================================
+        // بدء التشغيل
+        // ========================================
+        initScene();
+        animate();
+    </script>
+</body>
+</html>
